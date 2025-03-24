@@ -34,7 +34,8 @@
    cd ai-process-analyzer
 
 ## working
--- **Data Collection: collect_data.py gathers process stats (PID, Name, CPU%, Memory%) for 5 minutes, saved as process_data.csv.
--- **Clustering: train_model.py applies K-means (3 clusters) to identify usage patterns, saving results in clustered_data.csv.
--- **Monitoring: monitor.py uses real-time data and the trained model to flag terminable processes and generate suggestions.
--- **UI: ui.py runs a background thread to collect data every 2 seconds, updating the GUI every 5 seconds with process info and forecasts.
+
+- **Data Collection** : collect_data.py gathers process stats (PID, Name, CPU%, Memory%) for 5 minutes, saved as process_data.csv.
+- **Clustering** : train_model.py applies K-means (3 clusters) to identify usage patterns, saving results in clustered_data.csv.
+- **Monitoring** : monitor.py uses real-time data and the trained model to flag terminable processes and generate suggestions.
+- **UI** : ui.py runs a background thread to collect data every 2 seconds, updating the GUI every 5 seconds with process info and forecasts.
