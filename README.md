@@ -28,7 +28,7 @@
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/<your-username>/ai-process-analyzer.git
+   git clone https://github.com/sourav-jyoti/ai-process-analyzer.git
    cd ai-process-analyzer
 
 ## working
