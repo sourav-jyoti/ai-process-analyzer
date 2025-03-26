@@ -1,4 +1,4 @@
-
+***AI PROCESS ANALYZER***
 
 **AI Process Analyzer** is a Python-based desktop application designed to monitor system processes, provide AI-driven optimization suggestions, and forecast future resource usage. Built with Tkinter, it offers a user-friendly interface to analyze process performance, terminate or suspend high-resource processes, and leverage machine learning for system optimization.
 
