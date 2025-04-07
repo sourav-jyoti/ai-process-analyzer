@@ -133,4 +133,4 @@ if __name__ == "__main__":
         live, term = monitor_processes()
         print("Live Processes:", live)
         print("Terminable Processes:", term)
-        time.sleep(2)
+        time.sleep(2)  # Wait 2 seconds between iterations
