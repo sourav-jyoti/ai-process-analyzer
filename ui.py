@@ -15,6 +15,15 @@ root.title("AI Process Analyzer")
 root.geometry("800x600")
 root.resizable(True, True)
 
+# Apply custom style for colorful tabs
+style = ttk.Style()
+style.theme_use('default')
+
+style.configure('TNotebook.Tab', background='#D6EAF8', foreground='black', padding=[10, 5])
+style.map('TNotebook.Tab',
+          background=[('selected', '#5DADE2')],
+          foreground=[('selected', 'white')])
+
 # Create notebook for tabs
 notebook = ttk.Notebook(root)
 notebook.pack(fill="both", expand=True)
@@ -23,7 +32,6 @@ notebook.pack(fill="both", expand=True)
 tab1 = ttk.Frame(notebook)
 notebook.add(tab1, text="Process Monitoring")
 
-# Section 1: All Processes
 frame1 = ttk.LabelFrame(tab1, text="All Running Processes")
 frame1.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -33,14 +41,9 @@ scrollbar1.config(command=tree1.yview)
 scrollbar1.pack(side="right", fill="y")
 tree1.pack(fill="both", expand=True)
 
-tree1.heading('PID', text='PID')
-tree1.heading('Name', text='Name')
-tree1.heading('CPU%', text='CPU%')
-tree1.heading('Memory%', text='Memory%')
-tree1.column('PID', width=100)
-tree1.column('Name', width=200)
-tree1.column('CPU%', width=100)
-tree1.column('Memory%', width=100)
+for col in ('PID', 'Name', 'CPU%', 'Memory%'):
+    tree1.heading(col, text=col)
+    tree1.column(col, width=100)
 
 def refresh_scrollbar():
     tree1.update()
@@ -49,7 +52,6 @@ def refresh_scrollbar():
 refresh_button = ttk.Button(frame1, text="Refresh Scrollbar", command=refresh_scrollbar)
 refresh_button.pack(side="bottom", pady=5)
 
-# Section 2: Terminable Processes
 frame2 = ttk.LabelFrame(tab1, text="Terminable Processes")
 frame2.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -57,18 +59,9 @@ action_label = ttk.Label(frame2, text="Click on 'Kill' or 'Suspend' to perform t
 action_label.pack(side="top")
 
 tree2 = ttk.Treeview(frame2, columns=('PID', 'Name', 'CPU%', 'Memory%', 'Kill', 'Suspend'), show='headings')
-tree2.heading('PID', text='PID')
-tree2.heading('Name', text='Name')
-tree2.heading('CPU%', text='CPU%')
-tree2.heading('Memory%', text='Memory%')
-tree2.heading('Kill', text='Kill')
-tree2.heading('Suspend', text='Suspend')
-tree2.column('PID', width=100)
-tree2.column('Name', width=200)
-tree2.column('CPU%', width=100)
-tree2.column('Memory%', width=100)
-tree2.column('Kill', width=50)
-tree2.column('Suspend', width=70)
+for col in ('PID', 'Name', 'CPU%', 'Memory%', 'Kill', 'Suspend'):
+    tree2.heading(col, text=col)
+    tree2.column(col, width=100 if col != 'Suspend' else 120)
 tree2.pack(fill="both", expand=True)
 
 def on_treeview_click(event):
@@ -89,13 +82,11 @@ tree2.bind('<Button-1>', on_treeview_click)
 tab2 = ttk.Frame(notebook)
 notebook.add(tab2, text="Advanced Analytics")
 
-# Section 1: AI-Based Optimization Suggestions
 suggestion_frame = ttk.LabelFrame(tab2, text="AI-Based Optimization Suggestions")
 suggestion_frame.pack(fill="both", expand=True, padx=5, pady=5)
 suggestion_text = tk.Text(suggestion_frame, height=10)
 suggestion_text.pack(fill="both", expand=True)
 
-# Section 2: Resource Forecasting
 forecast_frame = ttk.LabelFrame(tab2, text="Resource Forecasting")
 forecast_frame.pack(fill="both", expand=True, padx=5, pady=5)
 forecast_text = tk.Text(forecast_frame, height=10)
@@ -105,21 +96,15 @@ forecast_text.pack(fill="both", expand=True)
 tab3 = ttk.Frame(notebook)
 notebook.add(tab3, text="System Overview")
 
-overview_frame = ttk.LabelFrame(tab3, text="System Resource Usage")
-overview_frame.pack(fill="both", expand=True, padx=5, pady=5)
-
-cpu_label = ttk.Label(overview_frame, text="CPU Usage: ")
-cpu_label.pack(anchor="w", padx=10)
-
-mem_label = ttk.Label(overview_frame, text="Memory Usage: ")
-mem_label.pack(anchor="w", padx=10)
-
-chart_frame = ttk.Frame(overview_frame)
-chart_frame.pack(fill="both", expand=True)
+cpu_label = ttk.Label(tab3, text="CPU Usage: Calculating...", font=("Arial", 12))
+cpu_label.pack(pady=5)
+mem_label = ttk.Label(tab3, text="Memory Usage: Calculating...", font=("Arial", 12))
+mem_label.pack(pady=5)
 
 fig, ax = plt.subplots(figsize=(6, 4))
-bar_canvas = FigureCanvasTkAgg(fig, master=chart_frame)
-bar_canvas.get_tk_widget().pack(fill="both", expand=True)
+canvas = FigureCanvasTkAgg(fig, master=tab3)
+canvas_widget = canvas.get_tk_widget()
+canvas_widget.pack(fill="both", expand=True)
 
 # Global data storage
 live_data = []
@@ -211,31 +196,20 @@ def update_ui():
     else:
         forecast_text.insert(tk.END, "Collecting data for forecasting...")
 
+    if live_data:
+        top5 = sorted(live_data, key=lambda x: x[2] + x[3], reverse=True)[:5]
+        labels = [f"{p[1]} ({p[0]})" for p in top5]
+        usage = [p[2] + p[3] for p in top5]
+        ax.clear()
+        ax.barh(labels, usage, color='#5DADE2')
+        ax.set_xlabel('Combined CPU% + Memory%')
+        ax.set_title('Top 5 Resource-Consuming Processes')
+        canvas.draw()
+
+        cpu_label.config(text=f"CPU Usage: {psutil.cpu_percent()}%")
+        mem_label.config(text=f"Memory Usage: {psutil.virtual_memory().percent}%")
+
     root.after(5000, update_ui)
 
-def update_overview():
-    if live_data:
-        cpu = psutil.cpu_percent()
-        mem = psutil.virtual_memory().percent
-        cpu_label.config(text=f"CPU Usage: {cpu:.1f}%")
-        mem_label.config(text=f"Memory Usage: {mem:.1f}%")
-
-        sorted_procs = sorted(live_data, key=lambda x: x[2], reverse=True)[:5]
-        names = [p[1] for p in sorted_procs]
-        cpu_vals = [p[2] for p in sorted_procs]
-        mem_vals = [p[3] for p in sorted_procs]
-
-        ax.clear()
-        ax.barh(names, cpu_vals, color='steelblue', label='CPU %')
-        ax.barh(names, mem_vals, color='orange', left=cpu_vals, label='Memory %')
-        ax.set_xlabel("Usage (%)")
-        ax.set_title("Top 5 Processes by CPU and Memory")
-        ax.legend()
-        ax.invert_yaxis()
-        fig.tight_layout()
-        bar_canvas.draw()
-    root.after(5000, update_overview)
-
 update_ui()
-update_overview()
 root.mainloop()
