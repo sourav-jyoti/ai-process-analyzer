@@ -73,11 +73,11 @@ def on_treeview_click(event):
     item = tree2.identify_row(event.y)
     column = tree2.identify_column(event.x)
     if item and column:
-        col_index = int(column[1:]) - 1  # Convert '#1' to 0, etc.
-        if col_index == 4:  # Kill column
+        col_index = int(column[1:]) - 1
+        if col_index == 4:
             pid = tree2.item(item, 'values')[0]
             kill_process(int(pid))
-        elif col_index == 5:  # Suspend column
+        elif col_index == 5:
             pid = tree2.item(item, 'values')[0]
             suspend_process(int(pid))
 
@@ -102,9 +102,15 @@ forecast_text.pack(fill="both", expand=True)
 # Global data storage
 live_data = []
 terminable_data = []
-system_data = []  # For forecasting: (timestamp, cpu_percent, mem_percent)
+system_data = []
+forecast_result = {
+    "cpu_pred": None,
+    "mem_pred": None,
+    "cpu_slope": None,
+    "mem_slope": None,
+    "last_updated": None
+}
 
-# Background data collection
 def collect_data():
     global live_data, terminable_data, system_data
     while True:
@@ -113,46 +119,56 @@ def collect_data():
         mem = psutil.virtual_memory().percent
         timestamp = time.time()
         system_data.append((timestamp, cpu, mem))
-        if len(system_data) > 150:  # Keep last 5 minutes (150 points at 2-second intervals)
+        if len(system_data) > 150:
             system_data.pop(0)
         time.sleep(2)
 
-# Start background thread
-thread = threading.Thread(target=collect_data, daemon=True)
-thread.start()
+def forecast_resources():
+    global forecast_result
+    while True:
+        if len(system_data) >= 10:
+            timestamps, cpus, mems = zip(*system_data)
+            timestamps = np.array(timestamps).reshape(-1, 1)
+            future_time = np.array([[time.time() + 300]])
+            cpu_model = LinearRegression().fit(timestamps, cpus)
+            mem_model = LinearRegression().fit(timestamps, mems)
+            forecast_result = {
+                "cpu_pred": cpu_model.predict(future_time)[0],
+                "mem_pred": mem_model.predict(future_time)[0],
+                "cpu_slope": cpu_model.coef_[0] * 60,
+                "mem_slope": mem_model.coef_[0] * 60,
+                "last_updated": time.strftime('%H:%M:%S')
+            }
+        time.sleep(30)
 
-# Process control functions
+threading.Thread(target=collect_data, daemon=True).start()
+threading.Thread(target=forecast_resources, daemon=True).start()
+
 def kill_process(pid):
     try:
-        proc = psutil.Process(pid)
-        proc.terminate()
+        psutil.Process(pid).terminate()
         print(f"Killed process with PID {pid}")
     except Exception as e:
         print(f"Error killing PID {pid}: {e}")
 
 def suspend_process(pid):
     try:
-        proc = psutil.Process(pid)
-        proc.suspend()
+        psutil.Process(pid).suspend()
         print(f"Suspended process with PID {pid}")
     except Exception as e:
         print(f"Error suspending PID {pid}: {e}")
 
-# Update UI function
 def update_ui():
-    # Update Process Monitoring Tab
     tree1.delete(*tree1.get_children())
     for proc in live_data:
         tree1.insert('', 'end', values=proc)
-    
+
     tree2.delete(*tree2.get_children())
     for proc in terminable_data:
         pid, name, cpu, mem = proc
         values = (pid, name, f"{cpu:.1f}", f"{mem:.1f}", "Kill", "Suspend")
         tree2.insert('', 'end', values=values)
-    
-    # Update Advanced Analytics Tab
-    # AI-Based Optimization Suggestions
+
     suggestions = get_advanced_optimization_suggestions()
     suggestion_text.delete(1.0, tk.END)
     if suggestions and suggestions[0] != "No data available for optimization suggestions.":
@@ -161,36 +177,19 @@ def update_ui():
             suggestion_text.insert(tk.END, f"{i}. {sug}\n")
     else:
         suggestion_text.insert(tk.END, "No optimization suggestions available at this time.")
-    
-    # Resource Forecasting
-    if len(system_data) >= 10:  # Need at least 10 points for a meaningful trend
-        timestamps, cpus, mems = zip(*system_data)
-        timestamps = np.array(timestamps).reshape(-1, 1)
-        current_time = time.time()
-        future_time = current_time + 300  # Predict 5 minutes ahead
 
-        # CPU forecast
-        cpu_model = LinearRegression().fit(timestamps, cpus)
-        cpu_pred = cpu_model.predict([[future_time]])[0]
-        cpu_slope = cpu_model.coef_[0] * 60  # Change per minute
-
-        # Memory forecast
-        mem_model = LinearRegression().fit(timestamps, mems)
-        mem_pred = mem_model.predict([[future_time]])[0]
-        mem_slope = mem_model.coef_[0] * 60  # Change per minute
-
-        forecast_text.delete(1.0, tk.END)
+    forecast_text.delete(1.0, tk.END)
+    if forecast_result["cpu_pred"] is not None:
         forecast_text.insert(tk.END, "Resource Forecast (Next 5 Minutes):\n")
-        forecast_text.insert(tk.END, f"Predicted CPU Usage: {cpu_pred:.2f}%\n")
-        forecast_text.insert(tk.END, f"CPU Trend: {'+' if cpu_slope > 0 else ''}{cpu_slope:.2f}% per minute\n")
-        forecast_text.insert(tk.END, f"Predicted Memory Usage: {mem_pred:.2f}%\n")
-        forecast_text.insert(tk.END, f"Memory Trend: {'+' if mem_slope > 0 else ''}{mem_slope:.2f}% per minute\n")
+        forecast_text.insert(tk.END, f"Predicted CPU Usage: {forecast_result['cpu_pred']:.2f}%\n")
+        forecast_text.insert(tk.END, f"CPU Trend: {'+' if forecast_result['cpu_slope'] > 0 else ''}{forecast_result['cpu_slope']:.2f}%/min\n")
+        forecast_text.insert(tk.END, f"Predicted Memory Usage: {forecast_result['mem_pred']:.2f}%\n")
+        forecast_text.insert(tk.END, f"Memory Trend: {'+' if forecast_result['mem_slope'] > 0 else ''}{forecast_result['mem_slope']:.2f}%/min\n")
+        forecast_text.insert(tk.END, f"Last Updated: {forecast_result['last_updated']}")
     else:
-        forecast_text.delete(1.0, tk.END)
         forecast_text.insert(tk.END, "Collecting data for forecasting...")
 
-    root.after(5000, update_ui)  # Update every 5 seconds
+    root.after(5000, update_ui)
 
-# Start UI updates
 update_ui()
 root.mainloop()
