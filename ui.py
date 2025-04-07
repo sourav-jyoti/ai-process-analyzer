@@ -6,6 +6,8 @@ import threading
 import time
 from sklearn.linear_model import LinearRegression
 import numpy as np
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib.pyplot as plt
 
 # UI Setup
 root = tk.Tk()
@@ -99,6 +101,26 @@ forecast_frame.pack(fill="both", expand=True, padx=5, pady=5)
 forecast_text = tk.Text(forecast_frame, height=10)
 forecast_text.pack(fill="both", expand=True)
 
+# Tab 3: System Overview
+tab3 = ttk.Frame(notebook)
+notebook.add(tab3, text="System Overview")
+
+overview_frame = ttk.LabelFrame(tab3, text="System Resource Usage")
+overview_frame.pack(fill="both", expand=True, padx=5, pady=5)
+
+cpu_label = ttk.Label(overview_frame, text="CPU Usage: ")
+cpu_label.pack(anchor="w", padx=10)
+
+mem_label = ttk.Label(overview_frame, text="Memory Usage: ")
+mem_label.pack(anchor="w", padx=10)
+
+chart_frame = ttk.Frame(overview_frame)
+chart_frame.pack(fill="both", expand=True)
+
+fig, ax = plt.subplots(figsize=(6, 4))
+bar_canvas = FigureCanvasTkAgg(fig, master=chart_frame)
+bar_canvas.get_tk_widget().pack(fill="both", expand=True)
+
 # Global data storage
 live_data = []
 terminable_data = []
@@ -191,5 +213,29 @@ def update_ui():
 
     root.after(5000, update_ui)
 
+def update_overview():
+    if live_data:
+        cpu = psutil.cpu_percent()
+        mem = psutil.virtual_memory().percent
+        cpu_label.config(text=f"CPU Usage: {cpu:.1f}%")
+        mem_label.config(text=f"Memory Usage: {mem:.1f}%")
+
+        sorted_procs = sorted(live_data, key=lambda x: x[2], reverse=True)[:5]
+        names = [p[1] for p in sorted_procs]
+        cpu_vals = [p[2] for p in sorted_procs]
+        mem_vals = [p[3] for p in sorted_procs]
+
+        ax.clear()
+        ax.barh(names, cpu_vals, color='steelblue', label='CPU %')
+        ax.barh(names, mem_vals, color='orange', left=cpu_vals, label='Memory %')
+        ax.set_xlabel("Usage (%)")
+        ax.set_title("Top 5 Processes by CPU and Memory")
+        ax.legend()
+        ax.invert_yaxis()
+        fig.tight_layout()
+        bar_canvas.draw()
+    root.after(5000, update_overview)
+
 update_ui()
+update_overview()
 root.mainloop()
